@@ -27,15 +27,29 @@ That way Instagram, TikTok, Threads and YouTube data can be analysed together.
 
 ## Install
 
-You need the [Apify MCP server](https://mcp.apify.com) connected to Claude.
+First connect the [Apify MCP server](https://mcp.apify.com) to Claude. The skill drives Apify
+through it.
 
-**Claude Code:** copy the `apify-actor-scout` folder into `~/.claude/skills/`.
+**Claude.ai / Claude Desktop**
 
-**Claude.ai / Claude Desktop:** zip the `apify-actor-scout` folder and upload it in
-Settings → Capabilities → Skills.
+1. Download `apify-actor-scout.zip` from the
+   [latest release](https://github.com/aglitskaya07/apify-actor-scout/releases/latest).
+2. In Claude, open Settings and find **Skills** (under *Customize* or *Capabilities*,
+   depending on your version). Skills need code execution to be turned on.
+3. Upload the zip and make sure the skill is switched on.
 
-Then just describe the data you need. The skill kicks in on requests to scrape or collect data
-through Apify, or when you ask what a collection will cost.
+**Claude Code**
+
+```bash
+git clone https://github.com/aglitskaya07/apify-actor-scout.git
+cp -r apify-actor-scout/apify-actor-scout ~/.claude/skills/
+```
+
+Restart Claude Code. The skill applies to every project.
+
+**Using it.** Just describe the data you need. The skill kicks in when you ask to scrape or
+collect data through Apify, or ask what a collection will cost. You can also call it by name:
+"use apify-actor-scout".
 
 ## Example
 
@@ -57,4 +71,9 @@ apify-actor-scout/
 
 ## Author
 
-Nailia Aglitskaya: I teach marketing and PR teams to work with AI agents.
+[Nailia Aglitskaya](https://www.linkedin.com/in/nailia-aglitskaya-397b18107): I teach marketing
+and PR teams to work with AI agents.
+
+## License
+
+MIT
