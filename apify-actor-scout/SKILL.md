@@ -11,7 +11,7 @@ description: >
   "which Apify actor", "how much will this cost", "pull data from Instagram/TikTok/YouTube/
   Threads/LinkedIn", "run this on Apify", "estimate the cost", "dry run", "pilot run".
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   requires: "Apify MCP server (search-actors, fetch-actor-details, call-actor, get-actor-run, get-dataset-items)"
 ---
 
@@ -142,7 +142,9 @@ Show a table, one row per candidate:
 | Actor | Price shape | Units | Expected cost | Notes |
 |---|---|---|---|---|
 
-Give expected and worst case (all limits hit). Then end with one question: the pilot budget.
+Give expected and worst case (all limits hit). When the input is "an account plus a date window",
+no limit gets hit on its own, so set an explicit cap (e.g. max posts = expected × 1.5) and treat
+it as the worst case. Then end with one question: the pilot budget.
 If a scope assumption needs confirming, state it in one line right above, so a single "yes"
 covers both. "Pilots on these 3 Actors will cost under $0.10 in total. OK to run them?"
 
@@ -156,8 +158,13 @@ Run each finalist with `call-actor` on the same 1-3 inputs:
 
 - Pick representative inputs, including one awkward one (a huge account, a non-English one,
   a post with many replies).
-- Set the Actor's own limits to the minimum: 2-5 items per input, a handful of comments.
-  These input fields are your real spending control.
+- Keep most pilot inputs small, but run **one input at the full planned depth** (e.g. all 30
+  comments on one post). Small pilots hide what happens past the first page or past the free
+  allowance: an Actor that gives 15 comments free may stop at exactly 15. The limit has to go
+  past both, or the pilot proves nothing about the full run.
+- Input fields like max posts or max comments are your real spending control.
+- Cheap volume probe: to learn how many posts an account published in the window, ask a
+  step-skipping Actor for 1 comment per post. One cheap item per post gives you the post count.
 - `callOptions.maxTotalChargeUsd` caps what a pay-per-event run can charge (you are never billed
   past it), but it cannot be set below $0.50. That makes it a safety net, not a pilot limit.
 
@@ -170,7 +177,12 @@ Then read the result with `get-dataset-items` and check:
 | Dates fall inside the window | the Actor ignores the date filter → you would pay for old data |
 | No duplicates | the same item counted twice → you pay twice |
 | What a limit means | 5 "per input" became 5 total, or the reverse → fix the estimate |
+| Sort order | asked for top comments, got newest (0 likes) → wrong Actor or wrong mode |
+| Full depth reached | the full-depth input returned fewer items than asked while the source has more → look for a stop flag (e.g. "continue on duplicates") |
 | Cost per item | compute it, see below |
+
+A call rejected by input validation (wrong date format, missing field) starts no run and costs
+nothing. Fix the input and call again.
 
 **Actual pilot cost.** The MCP run result shows items and compute units, not dollars. Compute
 the cost from the price list: items returned × price + start fee. A pilot of 2 TikTok posts on
@@ -195,17 +207,22 @@ fewer comments per post, a shorter window, top posts only, a cheaper Actor with 
 When running:
 
 - Set the Actor's input limits to the plan. Set `maxTotalChargeUsd` to the worst-case quote
-  plus ~25 %, so a runaway run stops itself.
+  plus ~25 % (or the $0.50 minimum on small jobs), so a runaway run stops itself.
 - If the job costs more than a few dollars, run a first batch of ~10 % and check that cost
   per useful item holds before running the rest.
 - Never re-run the same input "to be sure". Re-reading collected data with `get-dataset-items`
   costs next to nothing, collecting it again costs the full price. Failed runs still cost the start fee.
+- If some inputs came back incomplete, rerun only those, with the setting that caused it fixed.
+  The rerun pays again for the items you already have. Count it as waste in step 6.
 - Long runs: start with `waitSecs: 0` and poll with `get-actor-run`.
 
 ## 6. Reconcile
 
 After the run, report in one short table: planned vs got (items), quoted vs computed cost,
-and why they differ if they do. If the user keeps a log, add one line per job: date, Actor,
+and why they differ if they do. Add one more line, the **waste share**: money spent on rows you
+did not use (empty, out of window, duplicates, incomplete runs that had to be redone) divided
+by the total. Aim for 5 % or less. Above that, the Actor or its settings need another look
+before the next job. If the user keeps a log, add one line per job: date, Actor,
 units, cost, cost per useful item. Next estimates on the same Actor should use that observed
 number, not the price list.
 
